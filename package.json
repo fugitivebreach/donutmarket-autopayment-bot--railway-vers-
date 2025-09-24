@@ -1,0 +1,32 @@
+{
+  "name": "minecraft-payment-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot that connects to Minecraft servers using Mineflayer to execute payment commands",
+  "main": "minecraft_client.js",
+  "scripts": {
+    "start": "node minecraft_client.js",
+    "dev": "node minecraft_client.js",
+    "install": "npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "discord",
+    "minecraft",
+    "mineflayer",
+    "bot",
+    "payment"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@xboxreplay/xboxlive-auth": "^5.1.0",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "minecraft-protocol": "^1.62.0",
+    "mineflayer": "^4.33.0",
+    "prismarine-auth": "^2.7.0"
+  }
+}
