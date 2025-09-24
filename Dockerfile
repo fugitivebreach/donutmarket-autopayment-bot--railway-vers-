@@ -12,10 +12,13 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy package.json and install Node.js dependencies
-COPY package.json ./
-RUN npm config set registry https://registry.npmjs.org/ && \
-    npm install --verbose --no-optional --production
+# Install Node.js packages individually to avoid hanging
+RUN npm config set registry https://registry.npmjs.org/
+RUN npm install dotenv@16.3.1 --no-optional --production
+RUN npm install mineflayer@4.33.0 --no-optional --production --timeout=60000
+RUN npm install minecraft-protocol@1.62.0 --no-optional --production --timeout=60000
+RUN npm install prismarine-auth@2.7.0 --no-optional --production --timeout=60000
+RUN npm install @xboxreplay/xboxlive-auth@5.1.0 --no-optional --production --timeout=60000
 
 # Copy requirements.txt and install Python dependencies
 COPY requirements.txt ./
