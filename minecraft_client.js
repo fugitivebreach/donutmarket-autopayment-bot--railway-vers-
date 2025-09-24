@@ -73,7 +73,7 @@ class MinecraftClient {
             return;
         }
 
-        console.log('🔌 Starting Microsoft authentication...');
+        console.log('🔌 Starting Minecraft authentication...');
         console.log(`Connecting to ${this.config.host}:${this.config.port} as ${this.config.username}`);
         
         try {
@@ -92,10 +92,12 @@ class MinecraftClient {
                 botConfig.password = this.config.password;
             }
             
+            console.log(`Using auth mode: ${botConfig.auth}`);
+            
             this.bot = mineflayer.createBot(botConfig);
 
             this.bot.once('login', () => {
-                console.log('✅ Successfully authenticated with Microsoft!');
+                console.log('✅ Successfully authenticated!');
                 console.log(`Logged in as ${this.bot.username} (${this.bot.uuid})`);
                 this.authenticated = true;
             });
@@ -156,7 +158,16 @@ class MinecraftClient {
 
             this.bot.on('error', (err) => {
                 console.error('❌ Minecraft client error:', err.message);
-                if (err.stack) console.error(err.stack);
+                console.error('[ERROR]', err);
+                
+                // Check for specific offline mode rejection
+                if (err.message.includes('online-mode') || err.message.includes('premium') || err.message.includes('authentication')) {
+                    console.error('🚫 Server requires premium authentication - offline mode not allowed');
+                    console.error('💡 Try switching back to Microsoft authentication or use a different account');
+                }
+                
+                this.connected = false;
+                this.authenticated = false;
                 this.updateStatusFile(false, `Error: ${err.message}`);
             });
 
