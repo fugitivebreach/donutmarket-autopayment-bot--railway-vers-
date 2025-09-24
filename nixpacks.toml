@@ -4,7 +4,7 @@ nixPkgs = ["python311", "nodejs_18"]
 [phases.install]
 cmds = [
     "pip install -r requirements.txt",
-    "npm ci --production"
+    "npm install --production --no-optional --no-fund --no-audit"
 ]
 
 [start]
