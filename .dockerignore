@@ -1,0 +1,42 @@
+# Environment files
+.env
+.env.local
+.env.production
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Node modules
+node_modules/
+npm-debug.log*
+
+# Runtime files
+minecraft_status.json
+minecraft_command.txt
+minecraft_command_*.txt
+gambling_data.json
+afk_accounts.json
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+DEPLOYMENT.md
+migrate_afk_config.py
