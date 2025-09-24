@@ -329,6 +329,9 @@ class MinecraftPaymentBot(commands.Bot):
                     pass
             
             # Start the Minecraft client with basic configuration
+            import os
+            creation_flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            
             self.minecraft_process = subprocess.Popen(
                 ['node', node_script, 'connect'],
                 cwd=self.project_dir,
@@ -338,7 +341,7 @@ class MinecraftPaymentBot(commands.Bot):
                 bufsize=1,  # Line buffered
                 universal_newlines=True,
                 text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW
+                creationflags=creation_flags
             )
             
             logger.info("Minecraft client process started")
@@ -700,6 +703,9 @@ class MinecraftPaymentBot(commands.Bot):
             env['AUTH_TYPE'] = account_config['minecraft_authtype']
             
             # Start the Minecraft client with account-specific environment
+            import os
+            creation_flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            
             process = subprocess.Popen(
                 ['node', node_script, 'connect'],
                 cwd=self.project_dir,
@@ -710,7 +716,7 @@ class MinecraftPaymentBot(commands.Bot):
                 universal_newlines=True,
                 text=True,
                 env=env,
-                creationflags=subprocess.CREATE_NO_WINDOW
+                creationflags=creation_flags
             )
             
             self.afk_processes[username] = process
