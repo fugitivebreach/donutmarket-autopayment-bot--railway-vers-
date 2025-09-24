@@ -12,13 +12,12 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY requirements.txt package.json package-lock.json ./
-
-# Install Python dependencies
+# Copy and install Python dependencies
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Node.js dependencies
+# Copy and install Node.js dependencies
+COPY package.json ./
 RUN npm install
 
 # Copy application code

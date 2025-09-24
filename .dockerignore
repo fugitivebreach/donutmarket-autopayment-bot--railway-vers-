@@ -9,9 +9,11 @@ __pycache__/
 *$py.class
 *.so
 
-# Node modules
+# Node modules (but keep package files)
 node_modules/
 npm-debug.log*
+!package.json
+!package-lock.json
 
 # Runtime files
 minecraft_status.json
