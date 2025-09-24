@@ -25,26 +25,24 @@ class ProcessManager:
     def start_nodejs_process(self):
         """Start the Node.js Minecraft client process"""
         try:
-            logger.info("Checking Node.js availability...")
+            logger.info("Starting Node.js Minecraft client...")
             
             # Check if node is available
             try:
                 node_check = subprocess.run(['node', '--version'], capture_output=True, text=True)
                 if node_check.returncode != 0:
-                    logger.warning("Node.js is not available - Minecraft client features will be disabled")
+                    logger.error("Node.js is not available in runtime environment")
                     return False
                 logger.info(f"Node.js version: {node_check.stdout.strip()}")
             except FileNotFoundError:
-                logger.warning("Node.js is not installed - Minecraft client features will be disabled")
+                logger.error("Node.js is not installed or not in PATH")
                 return False
             
             # Check if minecraft_client.js exists
             client_script = Path(__file__).parent / 'minecraft_client.js'
             if not client_script.exists():
-                logger.warning("minecraft_client.js not found - Minecraft client features will be disabled")
+                logger.error("minecraft_client.js not found")
                 return False
-            
-            logger.info("Starting Node.js Minecraft client...")
             
             # Start the Node.js process in the background
             process = subprocess.Popen(
@@ -56,11 +54,11 @@ class ProcessManager:
             )
             
             self.processes['nodejs'] = process
-            logger.info(f"Node.js process started with PID: {process.pid}")
+            logger.info(f"Node.js Minecraft client started with PID: {process.pid}")
             return True
             
         except Exception as e:
-            logger.warning(f"Node.js process unavailable: {e}")
+            logger.error(f"Failed to start Node.js process: {e}")
             return False
     
     def start_python_bot(self):
@@ -155,25 +153,21 @@ def main():
     signal_handler.manager = manager
     
     try:
-        # Start Node.js process first (Minecraft client) - optional
-        nodejs_started = manager.start_nodejs_process()
-        if nodejs_started:
-            logger.info("Node.js Minecraft client started successfully")
-            # Wait a bit for Node.js to initialize
-            time.sleep(3)
-        else:
-            logger.warning("Node.js Minecraft client not available - Discord bot will run without Minecraft features")
+        # Start Node.js process first (Minecraft client)
+        if not manager.start_nodejs_process():
+            logger.error("Failed to start Node.js process - Minecraft features required!")
+            return 1
         
-        # Start Python Discord bot (essential)
+        # Wait a bit for Node.js to initialize
+        time.sleep(3)
+        
+        # Start Python Discord bot
         if not manager.start_python_bot():
             logger.error("Failed to start Python bot, exiting...")
             return 1
         
-        if nodejs_started:
-            logger.info("All processes started successfully!")
-        else:
-            logger.info("Discord bot started successfully (Minecraft client unavailable)")
-        logger.info("Bot is now running on Railway...")
+        logger.info("All processes started successfully!")
+        logger.info("Bot is now running on Railway with full Minecraft support!")
         
         # Monitor processes
         manager.monitor_processes()
