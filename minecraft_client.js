@@ -165,19 +165,33 @@ class MinecraftClient {
                 this.authenticated = true;
                 
                 // Save authentication tokens to database for Microsoft auth (if database is connected)
-                if (this.config.auth === 'microsoft' && this.bot.session && dbConnected) {
+                if (this.config.auth === 'microsoft' && dbConnected) {
                     try {
+                        console.log('🔍 Attempting to save auth tokens...');
+                        console.log('Bot session available:', !!this.bot.session);
+                        
                         const tokenData = {
-                            access_token: this.bot.session.accessToken,
-                            refresh_token: this.bot.session.clientToken,
+                            access_token: this.bot.session?.accessToken || 'no_access_token',
+                            refresh_token: this.bot.session?.clientToken || 'no_refresh_token',
                             expires_at: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
-                            profile: this.bot.session.selectedProfile || { name: this.bot.username, id: this.bot.uuid }
+                            profile: this.bot.session?.selectedProfile || { name: this.bot.username, id: this.bot.uuid }
                         };
+                        
+                        console.log('Token data prepared:', {
+                            username: this.config.username,
+                            hasAccessToken: !!tokenData.access_token,
+                            hasRefreshToken: !!tokenData.refresh_token,
+                            profileName: tokenData.profile.name
+                        });
+                        
                         await this.authDB.saveAuthTokens(this.config.username, tokenData);
                         console.log('💾 Saved authentication tokens to database');
                     } catch (error) {
                         console.error('❌ Failed to save auth tokens:', error.message);
+                        console.error('Full error:', error);
                     }
+                } else {
+                    console.log('🔍 Token save skipped - Auth:', this.config.auth, 'DB Connected:', dbConnected);
                 }
             });
 
