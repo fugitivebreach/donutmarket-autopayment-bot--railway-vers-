@@ -22,9 +22,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^16.3.1",
-    "minecraft-protocol": "^1.62.0",
-    "mineflayer": "^4.33.0",
-    "prismarine-auth": "^2.7.0"
+    "dotenv": "16.3.1",
+    "minecraft-protocol": "1.62.0",
+    "mineflayer": "4.33.0",
+    "prismarine-auth": "2.7.0"
   }
 }
