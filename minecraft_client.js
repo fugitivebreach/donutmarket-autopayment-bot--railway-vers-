@@ -151,14 +151,18 @@ class MinecraftClient {
                     }
                 } else {
                     // No valid tokens - start our custom auth portal
+                    const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+                        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+                        : `http://localhost:8080`;
+                    
                     console.log('🚫 No valid tokens found - starting custom auth portal');
                     console.log('🌐 Custom Authentication Portal Required');
                     console.log('📱 Please visit the following URL to authenticate:');
-                    console.log(`🔗 http://localhost:3001`);
+                    console.log(`🔗 ${baseUrl}`);
                     console.log('💡 This will capture and save your real Microsoft tokens');
                     console.log('⚠️ Bot will continue trying to connect while you authenticate...');
                     
-                    // Start the auth portal
+                    // Start the auth portal on the same port as the health server
                     const AuthPortal = require('./auth_portal');
                     const authPortal = new AuthPortal(this.authDB);
                     try {
@@ -169,9 +173,13 @@ class MinecraftClient {
                 }
                 
                 botConfig.onMsaCode = (data) => {
+                    const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+                        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+                        : `http://localhost:8080`;
+                    
                     console.log('🔐 Microsoft Authentication Required (fallback)');
                     console.log('📱 Please visit our custom auth portal instead:');
-                    console.log(`🌐 http://localhost:3001`);
+                    console.log(`🌐 ${baseUrl}`);
                     console.log('💡 This will save real tokens that never expire');
                     console.log('⚠️ Ignore the device code below - use the portal above');
                     console.log(`📋 Device code (ignore): ${data.user_code}`);

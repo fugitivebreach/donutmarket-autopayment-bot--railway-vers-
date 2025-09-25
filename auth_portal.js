@@ -7,12 +7,18 @@ class AuthPortal {
         this.authDB = authDB;
         this.app = express();
         this.server = null;
-        this.port = process.env.PORT || 3001;
+        this.port = process.env.PORT || 8080;
+        
+        // Get Railway public URL or fallback to localhost
+        const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+            ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+            : `http://localhost:${this.port}`;
         
         // Microsoft OAuth2 configuration
         this.clientId = '00000000402b5328'; // Minecraft client ID
-        this.redirectUri = `http://localhost:${this.port}/auth/callback`;
+        this.redirectUri = `${baseUrl}/auth/callback`;
         this.scope = 'XboxLive.signin offline_access';
+        this.baseUrl = baseUrl;
         
         this.setupRoutes();
     }
@@ -200,8 +206,8 @@ class AuthPortal {
                     console.error('❌ Failed to start auth portal:', err);
                     reject(err);
                 } else {
-                    console.log(`🌐 Auth portal running at http://localhost:${this.port}`);
-                    console.log(`🔐 Visit http://localhost:${this.port} to authenticate`);
+                    console.log(`🌐 Auth portal running at ${this.baseUrl}`);
+                    console.log(`🔐 Visit ${this.baseUrl} to authenticate`);
                     resolve();
                 }
             });
