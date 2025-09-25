@@ -8,7 +8,16 @@ function createBot() {
     version: '1.21.5',
     auth: 'microsoft', // Use Microsoft authentication
     checkTimeoutInterval: 30000,
-    hideErrors: false
+    hideErrors: false,
+    onMsaCode: (data) => {
+      console.log('🔐 Microsoft Authentication Required');
+      console.log('📱 Please visit the following URL to authenticate:');
+      console.log(`🌐 ${data.verification_uri}`);
+      console.log('🔢 Enter this device code when prompted:');
+      console.log(`📋 ${data.user_code}`);
+      console.log('⏰ You have 15 minutes to complete authentication');
+      console.log('🔄 Waiting for authentication...');
+    }
   });
 
   bot.on('login', () => {

@@ -87,12 +87,30 @@ class MinecraftClient {
                 hideErrors: false
             };
             
-            // Add password if provided
-            if (this.config.password) {
-                botConfig.password = this.config.password;
+            // Handle Microsoft authentication properly
+            if (this.config.auth === 'microsoft') {
+                // For Microsoft auth, we must NOT include a password field
+                // and we need to handle the MSA code callback
+                delete botConfig.password;
+                
+                botConfig.onMsaCode = (data) => {
+                    console.log('🔐 Microsoft Authentication Required');
+                    console.log('📱 Please visit the following URL to authenticate:');
+                    console.log(`🌐 ${data.verification_uri}`);
+                    console.log('🔢 Enter this device code when prompted:');
+                    console.log(`📋 ${data.user_code}`);
+                    console.log('⏰ You have 15 minutes to complete authentication');
+                    console.log('🔄 Waiting for authentication...');
+                };
+                
+                console.log('🔐 Using Microsoft authentication (OAuth2 flow)');
+            } else {
+                // For non-Microsoft auth, add password if provided
+                if (this.config.password) {
+                    botConfig.password = this.config.password;
+                }
+                console.log(`Using auth mode: ${botConfig.auth}`);
             }
-            
-            console.log(`Using auth mode: ${botConfig.auth}`);
             
             this.bot = mineflayer.createBot(botConfig);
 
