@@ -97,6 +97,9 @@ class MinecraftClient {
                 dbConnected = false;
             }
             
+            // Store tokens when authentication completes (declare at function scope)
+            let authTokens = null;
+            
             const botConfig = {
                 host: this.config.host,
                 port: this.config.port,
@@ -131,9 +134,6 @@ class MinecraftClient {
                         console.error('⚠️ Failed to retrieve cached tokens:', tokenError.message);
                     }
                 }
-                
-                // Store tokens when authentication completes
-                let authTokens = null;
                 
                 botConfig.onMsaCode = (data) => {
                     console.log('🔐 Microsoft Authentication Required');

@@ -124,11 +124,21 @@ class AuthDatabase {
             }
 
             const tokenData = rows[0];
+            
+            // Safe JSON parsing with fallback
+            let profile = {};
+            try {
+                profile = JSON.parse(tokenData.profile_data || '{}');
+            } catch (parseError) {
+                console.error('⚠️ Failed to parse profile data, using default:', parseError.message);
+                profile = { name: tokenData.username || 'unknown' };
+            }
+            
             return {
                 access_token: tokenData.access_token,
                 refresh_token: tokenData.refresh_token,
                 expires_at: tokenData.expires_at,
-                profile: JSON.parse(tokenData.profile_data || '{}')
+                profile: profile
             };
         } catch (error) {
             console.error('❌ Failed to get auth tokens:', error.message);
