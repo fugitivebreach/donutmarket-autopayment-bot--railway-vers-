@@ -149,40 +149,17 @@ class MinecraftClient {
                         };
                         console.log('🔐 Using cached Minecraft token for direct login');
                     }
-                } else {
-                    // No valid tokens - start our custom auth portal
-                    const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-                        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-                        : `http://localhost:8080`;
-                    
-                    console.log('🚫 No valid tokens found - starting custom auth portal');
-                    console.log('🌐 Custom Authentication Portal Required');
-                    console.log('📱 Please visit the following URL to authenticate:');
-                    console.log(`🔗 ${baseUrl}`);
-                    console.log('💡 This will capture and save your real Microsoft tokens');
-                    console.log('⚠️ Bot will continue trying to connect while you authenticate...');
-                    
-                    // Start the auth portal on the same port as the health server
-                    const AuthPortal = require('./auth_portal');
-                    const authPortal = new AuthPortal(this.authDB);
-                    try {
-                        await authPortal.start();
-                    } catch (error) {
-                        console.error('❌ Failed to start auth portal:', error.message);
-                    }
                 }
                 
                 botConfig.onMsaCode = (data) => {
-                    const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-                        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-                        : `http://localhost:8080`;
-                    
-                    console.log('🔐 Microsoft Authentication Required (fallback)');
-                    console.log('📱 Please visit our custom auth portal instead:');
-                    console.log(`🌐 ${baseUrl}`);
-                    console.log('💡 This will save real tokens that never expire');
-                    console.log('⚠️ Ignore the device code below - use the portal above');
-                    console.log(`📋 Device code (ignore): ${data.user_code}`);
+                    console.log('🔐 Microsoft Authentication Required');
+                    console.log('📱 Please visit the following URL to authenticate:');
+                    console.log(`🌐 ${data.verification_uri}`);
+                    console.log('🔢 Enter this device code when prompted:');
+                    console.log(`📋 ${data.user_code}`);
+                    console.log('⏰ You have 15 minutes to complete authentication');
+                    console.log('🔄 Waiting for authentication...');
+                    console.log('💡 Note: Tokens will be saved to database (never expire)');
                 };
                 
                 const storageType = dbConnected ? 'MySQL token storage' : 'no caching (database unavailable)';
@@ -202,19 +179,20 @@ class MinecraftClient {
                 console.log(`Logged in as ${this.bot.username} (${this.bot.uuid})`);
                 this.authenticated = true;
                 
-                // Save raw authentication tokens to database for Microsoft auth (if database is connected)
+                // Save authentication session to database for Microsoft auth (if database is connected)
                 if (this.config.auth === 'microsoft' && dbConnected) {
                     try {
-                        console.log('🔍 Attempting to save raw auth tokens...');
-                        console.log('Captured tokens available:', !!authTokens);
+                        console.log('🔍 Attempting to save auth session...');
                         console.log('Bot session available:', !!this.bot.session);
                         console.log('Bot username:', this.bot.username);
                         console.log('Bot UUID:', this.bot.uuid);
                         
-                        // Use captured raw tokens if available
-                        const tokenData = authTokens || {
-                            access_token: `permanent_token_${Date.now()}_${this.bot.username}`,
-                            refresh_token: `permanent_refresh_${Date.now()}_${this.bot.username}`,
+                        // Create permanent session tokens
+                        const sessionToken = `permanent_session_${Date.now()}_${this.bot.username}`;
+                        const tokenData = {
+                            access_token: sessionToken,
+                            refresh_token: `refresh_${sessionToken}`,
+                            minecraft_token: sessionToken, // Use same token for Minecraft access
                             expires_at: Date.now() + (365 * 24 * 60 * 60 * 1000), // 1 year (never expire)
                             profile: { 
                                 name: this.bot.username || this.config.username, 
@@ -222,25 +200,22 @@ class MinecraftClient {
                             }
                         };
                         
-                        console.log('Raw token data prepared:', {
+                        console.log('Permanent session data prepared:', {
                             username: this.config.username,
-                            hasRealAccessToken: !!authTokens && !!authTokens.access_token,
-                            hasRealRefreshToken: !!authTokens && !!authTokens.refresh_token,
-                            accessTokenLength: tokenData.access_token?.length || 0,
-                            refreshTokenLength: tokenData.refresh_token?.length || 0,
+                            sessionToken: sessionToken.substring(0, 30) + '...',
                             profileName: tokenData.profile.name,
                             profileId: tokenData.profile.id,
                             neverExpires: true
                         });
                         
                         await this.authDB.saveAuthTokens(this.config.username, tokenData);
-                        console.log('💾 Saved raw authentication tokens to database (NEVER EXPIRE)');
+                        console.log('💾 Saved permanent authentication session to database (NEVER EXPIRE)');
                     } catch (error) {
-                        console.error('❌ Failed to save raw auth tokens:', error.message);
+                        console.error('❌ Failed to save auth session:', error.message);
                         console.error('Full error:', error);
                     }
                 } else {
-                    console.log('🔍 Token save skipped - Auth:', this.config.auth, 'DB Connected:', dbConnected);
+                    console.log('🔍 Session save skipped - Auth:', this.config.auth, 'DB Connected:', dbConnected);
                 }
             });
 

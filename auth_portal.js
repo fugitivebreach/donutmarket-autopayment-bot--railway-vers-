@@ -7,7 +7,7 @@ class AuthPortal {
         this.authDB = authDB;
         this.app = express();
         this.server = null;
-        this.port = process.env.PORT || 8080;
+        this.port = process.env.PORT ? parseInt(process.env.PORT) + 1 : 3001;
         
         // Get Railway public URL or fallback to localhost
         const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
