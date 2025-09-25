@@ -70,14 +70,14 @@ class AuthDatabase {
                     username VARCHAR(255) UNIQUE NOT NULL,
                     access_token TEXT,
                     refresh_token TEXT,
+                    minecraft_token TEXT,
                     expires_at BIGINT,
-                    profile_data JSON,
+                    profile_data TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 )
             `;
             await this.connection.execute(createTableQuery);
-            console.log('✅ Auth tokens table initialized');
         } catch (error) {
             console.error('❌ Failed to initialize tables:', error.message);
             throw error;
@@ -88,11 +88,12 @@ class AuthDatabase {
         try {
             const query = `
                 INSERT INTO minecraft_auth_tokens 
-                (username, access_token, refresh_token, expires_at, profile_data)
-                VALUES (?, ?, ?, ?, ?)
+                (username, access_token, refresh_token, minecraft_token, expires_at, profile_data)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                 access_token = VALUES(access_token),
                 refresh_token = VALUES(refresh_token),
+                minecraft_token = VALUES(minecraft_token),
                 expires_at = VALUES(expires_at),
                 profile_data = VALUES(profile_data),
                 updated_at = CURRENT_TIMESTAMP
@@ -102,6 +103,7 @@ class AuthDatabase {
                 username,
                 tokenData.access_token || null,
                 tokenData.refresh_token || null,
+                tokenData.minecraft_token || null,
                 tokenData.expires_at || null,
                 JSON.stringify(tokenData.profile || {})
             ];
@@ -137,6 +139,7 @@ class AuthDatabase {
             return {
                 access_token: tokenData.access_token,
                 refresh_token: tokenData.refresh_token,
+                minecraft_token: tokenData.minecraft_token,
                 expires_at: tokenData.expires_at,
                 profile: profile
             };

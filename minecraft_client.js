@@ -135,47 +135,46 @@ class MinecraftClient {
                     }
                 }
                 
-                // Hook into the authentication process to capture raw tokens
-                const originalAuth = require('prismarine-auth');
-                let capturedTokens = null;
-                
-                // Override the authenticate method to capture tokens
-                if (originalAuth && originalAuth.Authflow) {
-                    const originalAuthenticate = originalAuth.Authflow.prototype.getMinecraftJavaToken;
-                    if (originalAuthenticate) {
-                        originalAuth.Authflow.prototype.getMinecraftJavaToken = async function(...args) {
-                            const result = await originalAuthenticate.apply(this, args);
-                            console.log('🔐 Raw Microsoft tokens captured!');
-                            capturedTokens = {
-                                access_token: result.access_token || this.msa?.access_token,
-                                refresh_token: result.refresh_token || this.msa?.refresh_token,
-                                expires_at: Date.now() + (365 * 24 * 60 * 60 * 1000), // Never expire (1 year)
-                                profile: result.profile || { name: result.username }
-                            };
-                            console.log('Captured token info:', {
-                                hasAccessToken: !!capturedTokens.access_token,
-                                hasRefreshToken: !!capturedTokens.refresh_token,
-                                tokenLength: capturedTokens.access_token?.length || 0
-                            });
-                            authTokens = capturedTokens; // Store in outer scope
-                            return result;
+                // Check if we have valid cached tokens first
+                const isTokenValid = await this.authDB.isTokenValid(this.config.username);
+                if (isTokenValid) {
+                    console.log('✅ Using cached authentication tokens from database');
+                    const cachedTokens = await this.authDB.getAuthTokens(this.config.username);
+                    if (cachedTokens && cachedTokens.minecraft_token) {
+                        // Use the cached Minecraft token directly
+                        botConfig.session = {
+                            accessToken: cachedTokens.minecraft_token,
+                            clientToken: cachedTokens.refresh_token,
+                            selectedProfile: cachedTokens.profile
                         };
+                        console.log('🔐 Using cached Minecraft token for direct login');
+                    }
+                } else {
+                    // No valid tokens - start our custom auth portal
+                    console.log('🚫 No valid tokens found - starting custom auth portal');
+                    console.log('🌐 Custom Authentication Portal Required');
+                    console.log('📱 Please visit the following URL to authenticate:');
+                    console.log(`🔗 http://localhost:3001`);
+                    console.log('💡 This will capture and save your real Microsoft tokens');
+                    console.log('⚠️ Bot will continue trying to connect while you authenticate...');
+                    
+                    // Start the auth portal
+                    const AuthPortal = require('./auth_portal');
+                    const authPortal = new AuthPortal(this.authDB);
+                    try {
+                        await authPortal.start();
+                    } catch (error) {
+                        console.error('❌ Failed to start auth portal:', error.message);
                     }
                 }
                 
                 botConfig.onMsaCode = (data) => {
-                    console.log('🔐 Microsoft Authentication Required');
-                    console.log('📱 Please visit the following URL to authenticate:');
-                    console.log(`🌐 ${data.verification_uri}`);
-                    console.log('🔢 Enter this device code when prompted:');
-                    console.log(`📋 ${data.user_code}`);
-                    console.log('⏰ You have 15 minutes to complete authentication');
-                    console.log('🔄 Waiting for authentication...');
-                    if (dbConnected) {
-                        console.log('💡 Note: Raw tokens will be saved to database (never expire)');
-                    } else {
-                        console.log('⚠️ Note: Database unavailable - authentication won\'t be cached');
-                    }
+                    console.log('🔐 Microsoft Authentication Required (fallback)');
+                    console.log('📱 Please visit our custom auth portal instead:');
+                    console.log(`🌐 http://localhost:3001`);
+                    console.log('💡 This will save real tokens that never expire');
+                    console.log('⚠️ Ignore the device code below - use the portal above');
+                    console.log(`📋 Device code (ignore): ${data.user_code}`);
                 };
                 
                 const storageType = dbConnected ? 'MySQL token storage' : 'no caching (database unavailable)';
