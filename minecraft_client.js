@@ -100,6 +100,42 @@ class MinecraftClient {
             // Store tokens when authentication completes (declare at function scope)
             let authTokens = null;
             
+            // Hook into prismarine-auth to capture real tokens
+            const { Authflow } = require('prismarine-auth');
+            const originalGetMinecraftJavaToken = Authflow.prototype.getMinecraftJavaToken;
+            
+            Authflow.prototype.getMinecraftJavaToken = async function(options) {
+                console.log('🔍 Intercepting Microsoft authentication flow...');
+                const result = await originalGetMinecraftJavaToken.call(this, options);
+                
+                // Capture the real tokens from the auth flow
+                if (this.msa && this.msa.access_token) {
+                    console.log('🔥 REAL Microsoft tokens captured!');
+                    authTokens = {
+                        access_token: this.msa.access_token,
+                        refresh_token: this.msa.refresh_token,
+                        minecraft_token: result.access_token,
+                        expires_at: Date.now() + (365 * 24 * 60 * 60 * 1000), // 1 year
+                        profile: {
+                            name: result.username || this.config?.username,
+                            id: result.uuid
+                        }
+                    };
+                    
+                    console.log('🎯 Real token data captured:', {
+                        msaTokenLength: this.msa.access_token.length,
+                        msaRefreshLength: this.msa.refresh_token?.length || 0,
+                        mcTokenLength: result.access_token.length,
+                        username: result.username,
+                        uuid: result.uuid
+                    });
+                } else {
+                    console.log('⚠️ MSA tokens not found in auth flow');
+                }
+                
+                return result;
+            };
+            
             const botConfig = {
                 host: this.config.host,
                 port: this.config.port,
@@ -179,43 +215,45 @@ class MinecraftClient {
                 console.log(`Logged in as ${this.bot.username} (${this.bot.uuid})`);
                 this.authenticated = true;
                 
-                // Save authentication session to database for Microsoft auth (if database is connected)
+                // Save REAL authentication tokens to database for Microsoft auth (if database is connected)
                 if (this.config.auth === 'microsoft' && dbConnected) {
                     try {
-                        console.log('🔍 Attempting to save auth session...');
-                        console.log('Bot session available:', !!this.bot.session);
+                        console.log('🔍 Attempting to save REAL auth tokens...');
+                        console.log('Real tokens available:', !!authTokens);
                         console.log('Bot username:', this.bot.username);
                         console.log('Bot UUID:', this.bot.uuid);
                         
-                        // Create permanent session tokens
-                        const sessionToken = `permanent_session_${Date.now()}_${this.bot.username}`;
-                        const tokenData = {
-                            access_token: sessionToken,
-                            refresh_token: `refresh_${sessionToken}`,
-                            minecraft_token: sessionToken, // Use same token for Minecraft access
-                            expires_at: Date.now() + (365 * 24 * 60 * 60 * 1000), // 1 year (never expire)
-                            profile: { 
-                                name: this.bot.username || this.config.username, 
-                                id: this.bot.uuid || 'unknown_uuid'
-                            }
-                        };
-                        
-                        console.log('Permanent session data prepared:', {
-                            username: this.config.username,
-                            sessionToken: sessionToken.substring(0, 30) + '...',
-                            profileName: tokenData.profile.name,
-                            profileId: tokenData.profile.id,
-                            neverExpires: true
-                        });
-                        
-                        await this.authDB.saveAuthTokens(this.config.username, tokenData);
-                        console.log('💾 Saved permanent authentication session to database (NEVER EXPIRE)');
+                        if (authTokens) {
+                            // Use the REAL captured Microsoft tokens
+                            const tokenData = {
+                                access_token: authTokens.access_token,
+                                refresh_token: authTokens.refresh_token,
+                                minecraft_token: authTokens.minecraft_token,
+                                expires_at: authTokens.expires_at,
+                                profile: authTokens.profile
+                            };
+                            
+                            console.log('🔥 REAL Microsoft token data prepared:', {
+                                username: this.config.username,
+                                msaTokenLength: tokenData.access_token.length,
+                                refreshTokenLength: tokenData.refresh_token?.length || 0,
+                                mcTokenLength: tokenData.minecraft_token.length,
+                                profileName: tokenData.profile.name,
+                                profileId: tokenData.profile.id,
+                                realTokens: true
+                            });
+                            
+                            await this.authDB.saveAuthTokens(this.config.username, tokenData);
+                            console.log('💾 Saved REAL Microsoft authentication tokens to database!');
+                        } else {
+                            console.log('⚠️ No real tokens captured - authentication hook may have failed');
+                        }
                     } catch (error) {
-                        console.error('❌ Failed to save auth session:', error.message);
+                        console.error('❌ Failed to save real auth tokens:', error.message);
                         console.error('Full error:', error);
                     }
                 } else {
-                    console.log('🔍 Session save skipped - Auth:', this.config.auth, 'DB Connected:', dbConnected);
+                    console.log('🔍 Token save skipped - Auth:', this.config.auth, 'DB Connected:', dbConnected);
                 }
             });
 
