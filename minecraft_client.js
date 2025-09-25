@@ -117,25 +117,32 @@ class MinecraftClient {
                 let msaToken = null;
                 let refreshToken = null;
                 
-                // Method 1: Direct MSA access
-                if (this.msa && this.msa.access_token) {
-                    msaToken = this.msa.access_token;
-                    refreshToken = this.msa.refresh_token;
-                    console.log('✅ Found tokens via this.msa');
+                // Method 1: Check MSA cache (where tokens are actually stored)
+                if (this.msa && this.msa.cache && this.msa.cache.access_token) {
+                    msaToken = this.msa.cache.access_token;
+                    refreshToken = this.msa.cache.refresh_token;
+                    console.log('✅ Found tokens via this.msa.cache');
                 }
                 
-                // Method 2: Check if tokens are in different location
-                if (!msaToken && this.msaToken) {
-                    msaToken = this.msaToken.access_token;
-                    refreshToken = this.msaToken.refresh_token;
-                    console.log('✅ Found tokens via this.msaToken');
+                // Method 2: Check if tokens are in MSA polling
+                if (!msaToken && this.msa && this.msa.polling && this.msa.polling.access_token) {
+                    msaToken = this.msa.polling.access_token;
+                    refreshToken = this.msa.polling.refresh_token;
+                    console.log('✅ Found tokens via this.msa.polling');
                 }
                 
-                // Method 3: Check if tokens are in the result
-                if (!msaToken && result.msaToken) {
-                    msaToken = result.msaToken.access_token;
-                    refreshToken = result.msaToken.refresh_token;
-                    console.log('✅ Found tokens via result.msaToken');
+                // Method 3: Check result token (this is the Minecraft token)
+                if (!msaToken && result.token) {
+                    // result.token is the Minecraft token, but we need MSA tokens
+                    console.log('🔍 Found Minecraft token in result.token, but need MSA tokens');
+                    console.log('🔍 MSA cache contents:', this.msa.cache ? Object.keys(this.msa.cache) : 'null');
+                }
+                
+                // Method 4: Deep dive into MSA object
+                if (!msaToken && this.msa) {
+                    console.log('🔍 Deep MSA inspection:');
+                    console.log('🔍 MSA.cache:', this.msa.cache);
+                    console.log('🔍 MSA.polling:', this.msa.polling);
                 }
                 
                 if (msaToken) {
@@ -143,7 +150,7 @@ class MinecraftClient {
                     authTokens = {
                         access_token: msaToken,
                         refresh_token: refreshToken,
-                        minecraft_token: result.access_token,
+                        minecraft_token: result.token,
                         expires_at: Date.now() + (365 * 24 * 60 * 60 * 1000), // 1 year
                         profile: {
                             name: result.username || result.name,
