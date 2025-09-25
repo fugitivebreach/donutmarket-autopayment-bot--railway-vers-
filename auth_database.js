@@ -3,14 +3,34 @@ const mysql = require('mysql2/promise');
 class AuthDatabase {
     constructor() {
         this.connection = null;
+        
+        // Debug environment variables
+        console.log('🔍 MySQL Environment Variables:');
+        console.log('MYSQLHOST:', process.env.MYSQLHOST);
+        console.log('MYSQLUSER:', process.env.MYSQLUSER);
+        console.log('MYSQLPORT:', process.env.MYSQLPORT);
+        console.log('MYSQLDATABASE:', process.env.MYSQLDATABASE);
+        console.log('MYSQL_URL:', process.env.MYSQL_URL);
+        
         this.config = {
             host: process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost',
             port: parseInt(process.env.MYSQLPORT || process.env.MYSQL_PORT || '3306'),
             user: process.env.MYSQLUSER || process.env.MYSQL_USER || 'root',
             password: process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD || '',
             database: process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'railway',
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+            connectTimeout: 60000,
+            acquireTimeout: 60000,
+            timeout: 60000
         };
+        
+        console.log('📋 MySQL Config:', {
+            host: this.config.host,
+            port: this.config.port,
+            user: this.config.user,
+            database: this.config.database,
+            ssl: this.config.ssl
+        });
     }
 
     async connect() {

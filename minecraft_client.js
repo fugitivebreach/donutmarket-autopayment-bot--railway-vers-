@@ -78,9 +78,24 @@ class MinecraftClient {
         console.log('🔌 Starting Minecraft authentication...');
         console.log(`Connecting to ${this.config.host}:${this.config.port} as ${this.config.username}`);
         
+        // Debug: Show all environment variables that start with MYSQL
+        console.log('🔍 Available MySQL environment variables:');
+        Object.keys(process.env).filter(key => key.includes('MYSQL')).forEach(key => {
+            console.log(`${key}:`, process.env[key] ? '[SET]' : '[NOT SET]');
+        });
+        
         try {
-            // Initialize database connection
-            await this.authDB.connect();
+            // Try to initialize database connection
+            let dbConnected = false;
+            try {
+                await this.authDB.connect();
+                dbConnected = true;
+                console.log('✅ MySQL database connected successfully');
+            } catch (dbError) {
+                console.error('⚠️ MySQL connection failed, continuing without database caching:', dbError.message);
+                console.log('🔄 Bot will work normally but authentication won\'t be cached');
+                dbConnected = false;
+            }
             
             const botConfig = {
                 host: this.config.host,
@@ -92,22 +107,28 @@ class MinecraftClient {
                 hideErrors: false
             };
             
-            // Handle Microsoft authentication with MySQL token storage
+            // Handle Microsoft authentication with optional MySQL token storage
             if (this.config.auth === 'microsoft') {
                 // For Microsoft auth, we must NOT include a password field
                 delete botConfig.password;
                 
-                // Check if we have valid cached tokens
-                const isTokenValid = await this.authDB.isTokenValid(this.config.username);
-                if (isTokenValid) {
-                    console.log('🔐 Using cached Microsoft authentication tokens from database');
-                    const cachedTokens = await this.authDB.getAuthTokens(this.config.username);
-                    if (cachedTokens) {
-                        botConfig.session = {
-                            accessToken: cachedTokens.access_token,
-                            clientToken: cachedTokens.refresh_token,
-                            selectedProfile: cachedTokens.profile
-                        };
+                // Check if we have valid cached tokens (only if database is connected)
+                if (dbConnected) {
+                    try {
+                        const isTokenValid = await this.authDB.isTokenValid(this.config.username);
+                        if (isTokenValid) {
+                            console.log('🔐 Using cached Microsoft authentication tokens from database');
+                            const cachedTokens = await this.authDB.getAuthTokens(this.config.username);
+                            if (cachedTokens) {
+                                botConfig.session = {
+                                    accessToken: cachedTokens.access_token,
+                                    clientToken: cachedTokens.refresh_token,
+                                    selectedProfile: cachedTokens.profile
+                                };
+                            }
+                        }
+                    } catch (tokenError) {
+                        console.error('⚠️ Failed to retrieve cached tokens:', tokenError.message);
                     }
                 }
                 
@@ -119,10 +140,15 @@ class MinecraftClient {
                     console.log(`📋 ${data.user_code}`);
                     console.log('⏰ You have 15 minutes to complete authentication');
                     console.log('🔄 Waiting for authentication...');
-                    console.log('💡 Note: This authentication will be saved to database for future deployments');
+                    if (dbConnected) {
+                        console.log('💡 Note: This authentication will be saved to database for future deployments');
+                    } else {
+                        console.log('⚠️ Note: Database unavailable - authentication won\'t be cached');
+                    }
                 };
                 
-                console.log('🔐 Using Microsoft authentication (OAuth2 flow with MySQL token storage)');
+                const storageType = dbConnected ? 'MySQL token storage' : 'no caching (database unavailable)';
+                console.log(`🔐 Using Microsoft authentication (OAuth2 flow with ${storageType})`);
             } else {
                 // For non-Microsoft auth, add password if provided
                 if (this.config.password) {
@@ -138,8 +164,8 @@ class MinecraftClient {
                 console.log(`Logged in as ${this.bot.username} (${this.bot.uuid})`);
                 this.authenticated = true;
                 
-                // Save authentication tokens to database for Microsoft auth
-                if (this.config.auth === 'microsoft' && this.bot.session) {
+                // Save authentication tokens to database for Microsoft auth (if database is connected)
+                if (this.config.auth === 'microsoft' && this.bot.session && dbConnected) {
                     try {
                         const tokenData = {
                             access_token: this.bot.session.accessToken,
