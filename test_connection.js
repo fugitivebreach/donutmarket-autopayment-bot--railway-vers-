@@ -9,14 +9,16 @@ function createBot() {
     auth: 'microsoft', // Use Microsoft authentication
     checkTimeoutInterval: 30000,
     hideErrors: false,
+    profilesFolder: __dirname, // Enable token caching
     onMsaCode: (data) => {
-      console.log('🔐 Microsoft Authentication Required');
+      console.log('🔐 Microsoft Authentication Required (First Time Setup)');
       console.log('📱 Please visit the following URL to authenticate:');
       console.log(`🌐 ${data.verification_uri}`);
       console.log('🔢 Enter this device code when prompted:');
       console.log(`📋 ${data.user_code}`);
       console.log('⏰ You have 15 minutes to complete authentication');
       console.log('🔄 Waiting for authentication...');
+      console.log('💡 Note: This authentication will be cached for future uses');
     }
   });
 

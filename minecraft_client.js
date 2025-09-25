@@ -93,17 +93,22 @@ class MinecraftClient {
                 // and we need to handle the MSA code callback
                 delete botConfig.password;
                 
+                // Set up token caching to avoid repeated authentication
+                const tokenCachePath = path.join(__dirname, '.minecraft_auth_cache.json');
+                botConfig.profilesFolder = __dirname; // This enables token caching
+                
                 botConfig.onMsaCode = (data) => {
-                    console.log('🔐 Microsoft Authentication Required');
+                    console.log('🔐 Microsoft Authentication Required (First Time Setup)');
                     console.log('📱 Please visit the following URL to authenticate:');
                     console.log(`🌐 ${data.verification_uri}`);
                     console.log('🔢 Enter this device code when prompted:');
                     console.log(`📋 ${data.user_code}`);
                     console.log('⏰ You have 15 minutes to complete authentication');
                     console.log('🔄 Waiting for authentication...');
+                    console.log('💡 Note: This authentication will be cached for future deployments');
                 };
                 
-                console.log('🔐 Using Microsoft authentication (OAuth2 flow)');
+                console.log('🔐 Using Microsoft authentication (OAuth2 flow with token caching)');
             } else {
                 // For non-Microsoft auth, add password if provided
                 if (this.config.password) {

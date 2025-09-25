@@ -22,6 +22,10 @@ minecraft_command_*.txt
 gambling_data.json
 afk_accounts.json
 
+# Keep authentication cache files for persistent login
+!.minecraft_auth_cache.json
+!launcher_profiles.json
+
 # Logs
 *.log
 logs/
