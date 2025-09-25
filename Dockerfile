@@ -15,6 +15,7 @@ WORKDIR /app
 # Install Node.js packages individually to avoid hanging
 RUN npm config set registry https://registry.npmjs.org/
 RUN npm install dotenv@16.3.1 --no-optional --production
+RUN npm install mysql2@3.6.5 --no-optional --production --timeout=60000
 RUN npm uninstall mineflayer@4.33.0 --no-optional --production --timeout=60000
 RUN npm install mineflayer@4.33.0 --no-optional --production --timeout=60000
 RUN npm install minecraft-protocol@1.62.0 --no-optional --production --timeout=60000
