@@ -1,6 +1,7 @@
 const mineflayer = require('mineflayer');
 const fs = require('fs');
 const path = require('path');
+const AuthDatabase = require('./auth_database');
 
 class MinecraftClient {
     constructor() {
@@ -9,6 +10,7 @@ class MinecraftClient {
         this.authenticated = false;
         this.config = this.loadConfig();
         this.commandQueue = [];
+        this.authDB = new AuthDatabase();
         this.setupCommandListener();
     }
 
@@ -63,7 +65,7 @@ class MinecraftClient {
         }, 500);
     }
 
-    connect() {
+    async connect() {
         // Enable debug logging
         console.error = (...args) => console.log('[ERROR]', ...args);
         console.debug = (...args) => console.log('[DEBUG]', ...args);
@@ -77,6 +79,9 @@ class MinecraftClient {
         console.log(`Connecting to ${this.config.host}:${this.config.port} as ${this.config.username}`);
         
         try {
+            // Initialize database connection
+            await this.authDB.connect();
+            
             const botConfig = {
                 host: this.config.host,
                 port: this.config.port,
@@ -87,28 +92,37 @@ class MinecraftClient {
                 hideErrors: false
             };
             
-            // Handle Microsoft authentication properly
+            // Handle Microsoft authentication with MySQL token storage
             if (this.config.auth === 'microsoft') {
                 // For Microsoft auth, we must NOT include a password field
-                // and we need to handle the MSA code callback
                 delete botConfig.password;
                 
-                // Set up token caching to avoid repeated authentication
-                const tokenCachePath = path.join(__dirname, '.minecraft_auth_cache.json');
-                botConfig.profilesFolder = __dirname; // This enables token caching
+                // Check if we have valid cached tokens
+                const isTokenValid = await this.authDB.isTokenValid(this.config.username);
+                if (isTokenValid) {
+                    console.log('🔐 Using cached Microsoft authentication tokens from database');
+                    const cachedTokens = await this.authDB.getAuthTokens(this.config.username);
+                    if (cachedTokens) {
+                        botConfig.session = {
+                            accessToken: cachedTokens.access_token,
+                            clientToken: cachedTokens.refresh_token,
+                            selectedProfile: cachedTokens.profile
+                        };
+                    }
+                }
                 
                 botConfig.onMsaCode = (data) => {
-                    console.log('🔐 Microsoft Authentication Required (First Time Setup)');
+                    console.log('🔐 Microsoft Authentication Required');
                     console.log('📱 Please visit the following URL to authenticate:');
                     console.log(`🌐 ${data.verification_uri}`);
                     console.log('🔢 Enter this device code when prompted:');
                     console.log(`📋 ${data.user_code}`);
                     console.log('⏰ You have 15 minutes to complete authentication');
                     console.log('🔄 Waiting for authentication...');
-                    console.log('💡 Note: This authentication will be cached for future deployments');
+                    console.log('💡 Note: This authentication will be saved to database for future deployments');
                 };
                 
-                console.log('🔐 Using Microsoft authentication (OAuth2 flow with token caching)');
+                console.log('🔐 Using Microsoft authentication (OAuth2 flow with MySQL token storage)');
             } else {
                 // For non-Microsoft auth, add password if provided
                 if (this.config.password) {
@@ -119,10 +133,26 @@ class MinecraftClient {
             
             this.bot = mineflayer.createBot(botConfig);
 
-            this.bot.once('login', () => {
+            this.bot.once('login', async () => {
                 console.log('✅ Successfully authenticated!');
                 console.log(`Logged in as ${this.bot.username} (${this.bot.uuid})`);
                 this.authenticated = true;
+                
+                // Save authentication tokens to database for Microsoft auth
+                if (this.config.auth === 'microsoft' && this.bot.session) {
+                    try {
+                        const tokenData = {
+                            access_token: this.bot.session.accessToken,
+                            refresh_token: this.bot.session.clientToken,
+                            expires_at: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
+                            profile: this.bot.session.selectedProfile || { name: this.bot.username, id: this.bot.uuid }
+                        };
+                        await this.authDB.saveAuthTokens(this.config.username, tokenData);
+                        console.log('💾 Saved authentication tokens to database');
+                    } catch (error) {
+                        console.error('❌ Failed to save auth tokens:', error.message);
+                    }
+                }
             });
 
             this.bot.once('spawn', async () => {

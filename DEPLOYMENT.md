@@ -13,7 +13,11 @@ This guide will help you deploy the DonutMarket Autopayment Bot to Railway.
    - Select "Deploy from GitHub repo"
    - Choose your forked repository
 
-4. **Set Environment Variables** in Railway dashboard:
+4. **Add a MySQL Database** in Railway:
+   - Click "New" → "Database" → "Add MySQL"
+   - Railway will automatically create MYSQL_* environment variables
+
+5. **Set Environment Variables** in Railway dashboard:
    ```
    DISCORD_TOKEN=your_discord_bot_token
    DISCORD_CLIENT_ID=your_discord_client_id
@@ -21,7 +25,6 @@ This guide will help you deploy the DonutMarket Autopayment Bot to Railway.
    MINECRAFT_HOST=east.donutsmp.net
    MINECRAFT_PORT=25565
    MINECRAFT_USERNAME=your_minecraft_username
-   MINECRAFT_PASSWORD=your_minecraft_password
    MINECRAFT_TYPE=Java
    MINECRAFT_VERSION=1.21.5
    AUTH_TYPE=microsoft
@@ -33,6 +36,8 @@ This guide will help you deploy the DonutMarket Autopayment Bot to Railway.
    AFK_VERSION=1.21.5
    AFK_AUTH=microsoft
    ```
+   
+   **Note**: Do NOT set MINECRAFT_PASSWORD when using Microsoft authentication. The MySQL database will store authentication tokens automatically.
 
 5. **Deploy**: Railway will automatically build and deploy your bot
 
