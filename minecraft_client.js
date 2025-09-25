@@ -108,29 +108,62 @@ class MinecraftClient {
                 console.log('🔍 Intercepting Microsoft authentication flow...');
                 const result = await originalGetMinecraftJavaToken.call(this, options);
                 
-                // Capture the real tokens from the auth flow
+                // Debug: Log the entire auth flow object structure
+                console.log('🔍 Auth flow object keys:', Object.keys(this));
+                console.log('🔍 MSA object:', this.msa ? Object.keys(this.msa) : 'null');
+                console.log('🔍 Result object:', result ? Object.keys(result) : 'null');
+                
+                // Try multiple ways to access the tokens
+                let msaToken = null;
+                let refreshToken = null;
+                
+                // Method 1: Direct MSA access
                 if (this.msa && this.msa.access_token) {
+                    msaToken = this.msa.access_token;
+                    refreshToken = this.msa.refresh_token;
+                    console.log('✅ Found tokens via this.msa');
+                }
+                
+                // Method 2: Check if tokens are in different location
+                if (!msaToken && this.msaToken) {
+                    msaToken = this.msaToken.access_token;
+                    refreshToken = this.msaToken.refresh_token;
+                    console.log('✅ Found tokens via this.msaToken');
+                }
+                
+                // Method 3: Check if tokens are in the result
+                if (!msaToken && result.msaToken) {
+                    msaToken = result.msaToken.access_token;
+                    refreshToken = result.msaToken.refresh_token;
+                    console.log('✅ Found tokens via result.msaToken');
+                }
+                
+                if (msaToken) {
                     console.log('🔥 REAL Microsoft tokens captured!');
                     authTokens = {
-                        access_token: this.msa.access_token,
-                        refresh_token: this.msa.refresh_token,
+                        access_token: msaToken,
+                        refresh_token: refreshToken,
                         minecraft_token: result.access_token,
                         expires_at: Date.now() + (365 * 24 * 60 * 60 * 1000), // 1 year
                         profile: {
-                            name: result.username || this.config?.username,
-                            id: result.uuid
+                            name: result.username || result.name,
+                            id: result.uuid || result.id
                         }
                     };
                     
                     console.log('🎯 Real token data captured:', {
-                        msaTokenLength: this.msa.access_token.length,
-                        msaRefreshLength: this.msa.refresh_token?.length || 0,
+                        msaTokenLength: msaToken.length,
+                        refreshTokenLength: refreshToken?.length || 0,
                         mcTokenLength: result.access_token.length,
-                        username: result.username,
-                        uuid: result.uuid
+                        username: result.username || result.name,
+                        uuid: result.uuid || result.id
                     });
                 } else {
-                    console.log('⚠️ MSA tokens not found in auth flow');
+                    console.log('⚠️ MSA tokens not found in any location');
+                    console.log('🔍 Available properties:', {
+                        thisKeys: Object.keys(this),
+                        resultKeys: Object.keys(result)
+                    });
                 }
                 
                 return result;
