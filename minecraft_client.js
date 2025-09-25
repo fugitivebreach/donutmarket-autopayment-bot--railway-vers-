@@ -217,13 +217,24 @@ class MinecraftClient {
                     console.log('✅ Using cached authentication tokens from database');
                     const cachedTokens = await this.authDB.getAuthTokens(this.config.username);
                     if (cachedTokens && cachedTokens.minecraft_token) {
-                        // Use the cached Minecraft token directly
+                        // Use the cached Microsoft tokens directly in the session
                         botConfig.session = {
                             accessToken: cachedTokens.minecraft_token,
                             clientToken: cachedTokens.refresh_token,
-                            selectedProfile: cachedTokens.profile
+                            selectedProfile: cachedTokens.profile,
+                            // Add Microsoft-specific session data
+                            msaToken: {
+                                access_token: cachedTokens.access_token,
+                                refresh_token: cachedTokens.refresh_token
+                            }
                         };
-                        console.log('🔐 Using cached Minecraft token for direct login');
+                        // Keep Microsoft auth but provide pre-authenticated session
+                        console.log('🔐 Using cached Microsoft tokens for direct login');
+                        
+                        // Create bot immediately with cached session
+                        this.bot = mineflayer.createBot(botConfig);
+                        this.setupBotEvents(dbConnected, authTokens);
+                        return;
                     }
                 }
                 
@@ -249,8 +260,19 @@ class MinecraftClient {
             }
             
             this.bot = mineflayer.createBot(botConfig);
+            this.setupBotEvents(dbConnected, authTokens);
+            
+        } catch (error) {
+            console.error('❌ Connection failed:', error.message);
+            this.authenticated = false;
+            this.connected = false;
+            this.updateStatusFile(false, `Connection failed: ${error.message}`);
+            throw error;
+        }
+    }
 
-            this.bot.once('login', async () => {
+    setupBotEvents(dbConnected, authTokens) {
+        this.bot.once('login', async () => {
                 console.log('✅ Successfully authenticated!');
                 console.log(`Logged in as ${this.bot.username} (${this.bot.uuid})`);
                 this.authenticated = true;
@@ -387,15 +409,6 @@ class MinecraftClient {
                 // Uncomment for detailed packet logging
                 // console.log('[PACKET]', packet.name);
             });
-            
-        } catch (error) {
-            console.error('❌ Failed to create Minecraft client:', error);
-            this.updateStatusFile(false, `Failed to create client: ${error.message}`);
-            
-            // Attempt to reconnect after 10 seconds on error
-            console.log('Attempting to reconnect in 10 seconds...');
-            setTimeout(() => this.connect(), 10000);
-        }
     }
 
     disconnect() {
