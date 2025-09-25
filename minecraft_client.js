@@ -211,29 +211,28 @@ class MinecraftClient {
                     }
                 }
                 
-                // Check if we have valid cached tokens first
+                // Check if we have valid cached tokens first e
                 const isTokenValid = await this.authDB.isTokenValid(this.config.username);
                 if (isTokenValid) {
                     console.log('✅ Using cached authentication tokens from database');
                     const cachedTokens = await this.authDB.getAuthTokens(this.config.username);
                     if (cachedTokens && cachedTokens.minecraft_token) {
-                        // Use the cached Microsoft tokens directly in the session
+                        // Use the cached Minecraft token and switch to session-based auth
                         botConfig.session = {
                             accessToken: cachedTokens.minecraft_token,
-                            clientToken: cachedTokens.refresh_token,
-                            selectedProfile: cachedTokens.profile,
-                            // Add Microsoft-specific session data
-                            msaToken: {
-                                access_token: cachedTokens.access_token,
-                                refresh_token: cachedTokens.refresh_token
+                            clientToken: cachedTokens.refresh_token || 'cached_client_token',
+                            selectedProfile: {
+                                id: cachedTokens.profile?.id || 'unknown',
+                                name: cachedTokens.profile?.name || this.config.username
                             }
                         };
-                        // Keep Microsoft auth but provide pre-authenticated session
-                        console.log('🔐 Using cached Microsoft tokens for direct login');
+                        // Remove Microsoft auth and use session instead
+                        delete botConfig.auth;
+                        console.log('🔐 Using cached Minecraft token for direct login (session mode)');
                         
                         // Create bot immediately with cached session
                         this.bot = mineflayer.createBot(botConfig);
-                        this.setupBotEvents(dbConnected, authTokens);
+                        this.setupBotEvents(dbConnected, null);
                         return;
                     }
                 }
