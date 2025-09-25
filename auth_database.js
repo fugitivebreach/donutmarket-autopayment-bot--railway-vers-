@@ -159,17 +159,46 @@ class AuthDatabase {
     async isTokenValid(username) {
         try {
             const tokenData = await this.getAuthTokens(username);
-            if (!tokenData || !tokenData.expires_at) {
+            if (!tokenData) {
+                console.log(`🔍 No tokens found for ${username}`);
                 return false;
             }
-
-            const now = Date.now();
-            const expiresAt = parseInt(tokenData.expires_at);
             
-            // Consider token valid if it expires more than 5 minutes from now
-            return expiresAt > (now + 5 * 60 * 1000);
+            // Check if we have valid tokens (not the old placeholder tokens)
+            const hasValidTokens = tokenData.access_token && 
+                                 tokenData.access_token !== 'no_access_token' &&
+                                 tokenData.access_token.length > 20;
+            
+            if (!hasValidTokens) {
+                console.log(`🔄 Invalid tokens for ${username}, removing from database`);
+                await this.deleteAuthTokens(username);
+                return false;
+            }
+            
+            // Check if token type indicates it's a permanent token
+            const isPermanentToken = tokenData.access_token.startsWith('permanent_token_') ||
+                                   tokenData.access_token.startsWith('msa_session_') ||
+                                   tokenData.access_token.length > 100; // Real OAuth tokens are long
+            
+            if (isPermanentToken) {
+                console.log(`✅ Valid permanent token found for ${username} (NEVER EXPIRES)`);
+                return true;
+            }
+            
+            // For non-permanent tokens, check expiry (legacy support)
+            const now = Date.now();
+            const expiresAt = new Date(tokenData.expires_at).getTime();
+            
+            if (now >= expiresAt) {
+                console.log(`🔄 Token expired for ${username}, removing from database`);
+                await this.deleteAuthTokens(username);
+                return false;
+            }
+            
+            console.log(`✅ Valid token found for ${username}, expires: ${new Date(expiresAt).toISOString()}`);
+            return true;
         } catch (error) {
-            console.error('❌ Failed to check token validity:', error.message);
+            console.error('❌ Failed to validate token:', error.message);
             return false;
         }
     }

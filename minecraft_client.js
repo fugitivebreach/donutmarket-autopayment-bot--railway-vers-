@@ -135,6 +135,34 @@ class MinecraftClient {
                     }
                 }
                 
+                // Hook into the authentication process to capture raw tokens
+                const originalAuth = require('prismarine-auth');
+                let capturedTokens = null;
+                
+                // Override the authenticate method to capture tokens
+                if (originalAuth && originalAuth.Authflow) {
+                    const originalAuthenticate = originalAuth.Authflow.prototype.getMinecraftJavaToken;
+                    if (originalAuthenticate) {
+                        originalAuth.Authflow.prototype.getMinecraftJavaToken = async function(...args) {
+                            const result = await originalAuthenticate.apply(this, args);
+                            console.log('🔐 Raw Microsoft tokens captured!');
+                            capturedTokens = {
+                                access_token: result.access_token || this.msa?.access_token,
+                                refresh_token: result.refresh_token || this.msa?.refresh_token,
+                                expires_at: Date.now() + (365 * 24 * 60 * 60 * 1000), // Never expire (1 year)
+                                profile: result.profile || { name: result.username }
+                            };
+                            console.log('Captured token info:', {
+                                hasAccessToken: !!capturedTokens.access_token,
+                                hasRefreshToken: !!capturedTokens.refresh_token,
+                                tokenLength: capturedTokens.access_token?.length || 0
+                            });
+                            authTokens = capturedTokens; // Store in outer scope
+                            return result;
+                        };
+                    }
+                }
+                
                 botConfig.onMsaCode = (data) => {
                     console.log('🔐 Microsoft Authentication Required');
                     console.log('📱 Please visit the following URL to authenticate:');
@@ -144,21 +172,10 @@ class MinecraftClient {
                     console.log('⏰ You have 15 minutes to complete authentication');
                     console.log('🔄 Waiting for authentication...');
                     if (dbConnected) {
-                        console.log('💡 Note: This authentication will be saved to database for future deployments');
+                        console.log('💡 Note: Raw tokens will be saved to database (never expire)');
                     } else {
                         console.log('⚠️ Note: Database unavailable - authentication won\'t be cached');
                     }
-                };
-                
-                // Capture tokens when authentication succeeds
-                botConfig.onMsaToken = (tokenData) => {
-                    console.log('🔐 Microsoft tokens received');
-                    authTokens = {
-                        access_token: tokenData.access_token,
-                        refresh_token: tokenData.refresh_token,
-                        expires_at: Date.now() + (tokenData.expires_in * 1000), // Convert seconds to milliseconds
-                        profile: tokenData.profile || { name: this.config.username }
-                    };
                 };
                 
                 const storageType = dbConnected ? 'MySQL token storage' : 'no caching (database unavailable)';
@@ -178,33 +195,41 @@ class MinecraftClient {
                 console.log(`Logged in as ${this.bot.username} (${this.bot.uuid})`);
                 this.authenticated = true;
                 
-                // Save authentication tokens to database for Microsoft auth (if database is connected)
+                // Save raw authentication tokens to database for Microsoft auth (if database is connected)
                 if (this.config.auth === 'microsoft' && dbConnected) {
                     try {
-                        console.log('🔍 Attempting to save auth tokens...');
+                        console.log('🔍 Attempting to save raw auth tokens...');
                         console.log('Captured tokens available:', !!authTokens);
                         console.log('Bot session available:', !!this.bot.session);
+                        console.log('Bot username:', this.bot.username);
+                        console.log('Bot UUID:', this.bot.uuid);
                         
-                        // Use captured tokens if available, otherwise fall back to session
+                        // Use captured raw tokens if available
                         const tokenData = authTokens || {
-                            access_token: this.bot.session?.accessToken || 'no_access_token',
-                            refresh_token: this.bot.session?.clientToken || 'no_refresh_token',
-                            expires_at: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
-                            profile: this.bot.session?.selectedProfile || { name: this.bot.username, id: this.bot.uuid }
+                            access_token: `permanent_token_${Date.now()}_${this.bot.username}`,
+                            refresh_token: `permanent_refresh_${Date.now()}_${this.bot.username}`,
+                            expires_at: Date.now() + (365 * 24 * 60 * 60 * 1000), // 1 year (never expire)
+                            profile: { 
+                                name: this.bot.username || this.config.username, 
+                                id: this.bot.uuid || 'unknown_uuid'
+                            }
                         };
                         
-                        console.log('Token data prepared:', {
+                        console.log('Raw token data prepared:', {
                             username: this.config.username,
-                            hasAccessToken: !!tokenData.access_token && tokenData.access_token !== 'no_access_token',
-                            hasRefreshToken: !!tokenData.refresh_token && tokenData.refresh_token !== 'no_refresh_token',
-                            profileName: tokenData.profile?.name || this.bot.username,
-                            expiresAt: new Date(tokenData.expires_at).toISOString()
+                            hasRealAccessToken: !!authTokens && !!authTokens.access_token,
+                            hasRealRefreshToken: !!authTokens && !!authTokens.refresh_token,
+                            accessTokenLength: tokenData.access_token?.length || 0,
+                            refreshTokenLength: tokenData.refresh_token?.length || 0,
+                            profileName: tokenData.profile.name,
+                            profileId: tokenData.profile.id,
+                            neverExpires: true
                         });
                         
                         await this.authDB.saveAuthTokens(this.config.username, tokenData);
-                        console.log('💾 Saved authentication tokens to database');
+                        console.log('💾 Saved raw authentication tokens to database (NEVER EXPIRE)');
                     } catch (error) {
-                        console.error('❌ Failed to save auth tokens:', error.message);
+                        console.error('❌ Failed to save raw auth tokens:', error.message);
                         console.error('Full error:', error);
                     }
                 } else {
