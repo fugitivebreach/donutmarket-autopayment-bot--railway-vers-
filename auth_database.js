@@ -10,19 +10,37 @@ class AuthDatabase {
         console.log('MYSQLUSER:', process.env.MYSQLUSER);
         console.log('MYSQLPORT:', process.env.MYSQLPORT);
         console.log('MYSQLDATABASE:', process.env.MYSQLDATABASE);
+        console.log('MYSQL_ROOT_PASSWORD:', process.env.MYSQL_ROOT_PASSWORD);
         console.log('MYSQL_URL:', process.env.MYSQL_URL);
+        console.log('RAILWAY_PRIVATE_DOMAIN:', process.env.RAILWAY_PRIVATE_DOMAIN);
         
-        this.config = {
-            host: process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost',
-            port: parseInt(process.env.MYSQLPORT || process.env.MYSQL_PORT || '3306'),
-            user: process.env.MYSQLUSER || process.env.MYSQL_USER || 'root',
-            password: process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD || '',
-            database: process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'railway',
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-            connectTimeout: 60000,
-            acquireTimeout: 60000,
-            timeout: 60000
-        };
+        // Check if MYSQL_URL is provided (Railway format)
+        if (process.env.MYSQL_URL) {
+            console.log('🔗 Using MYSQL_URL for connection');
+            // Parse the MySQL URL: mysql://user:password@host:port/database
+            const url = new URL(process.env.MYSQL_URL);
+            this.config = {
+                host: url.hostname,
+                port: parseInt(url.port) || 3306,
+                user: url.username,
+                password: url.password,
+                database: url.pathname.slice(1), // Remove leading slash
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+                connectTimeout: 60000
+            };
+        } else {
+            // Fallback to individual environment variables
+            console.log('🔧 Using individual MySQL environment variables');
+            this.config = {
+                host: process.env.MYSQLHOST || process.env.RAILWAY_PRIVATE_DOMAIN || 'localhost',
+                port: parseInt(process.env.MYSQLPORT || '3306'),
+                user: process.env.MYSQLUSER || 'root',
+                password: process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD || '',
+                database: process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'railway',
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+                connectTimeout: 60000
+            };
+        }
         
         console.log('📋 MySQL Config:', {
             host: this.config.host,
