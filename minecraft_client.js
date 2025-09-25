@@ -132,6 +132,9 @@ class MinecraftClient {
                     }
                 }
                 
+                // Store tokens when authentication completes
+                let authTokens = null;
+                
                 botConfig.onMsaCode = (data) => {
                     console.log('🔐 Microsoft Authentication Required');
                     console.log('📱 Please visit the following URL to authenticate:');
@@ -145,6 +148,17 @@ class MinecraftClient {
                     } else {
                         console.log('⚠️ Note: Database unavailable - authentication won\'t be cached');
                     }
+                };
+                
+                // Capture tokens when authentication succeeds
+                botConfig.onMsaToken = (tokenData) => {
+                    console.log('🔐 Microsoft tokens received');
+                    authTokens = {
+                        access_token: tokenData.access_token,
+                        refresh_token: tokenData.refresh_token,
+                        expires_at: Date.now() + (tokenData.expires_in * 1000), // Convert seconds to milliseconds
+                        profile: tokenData.profile || { name: this.config.username }
+                    };
                 };
                 
                 const storageType = dbConnected ? 'MySQL token storage' : 'no caching (database unavailable)';
@@ -168,9 +182,11 @@ class MinecraftClient {
                 if (this.config.auth === 'microsoft' && dbConnected) {
                     try {
                         console.log('🔍 Attempting to save auth tokens...');
+                        console.log('Captured tokens available:', !!authTokens);
                         console.log('Bot session available:', !!this.bot.session);
                         
-                        const tokenData = {
+                        // Use captured tokens if available, otherwise fall back to session
+                        const tokenData = authTokens || {
                             access_token: this.bot.session?.accessToken || 'no_access_token',
                             refresh_token: this.bot.session?.clientToken || 'no_refresh_token',
                             expires_at: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
@@ -179,9 +195,10 @@ class MinecraftClient {
                         
                         console.log('Token data prepared:', {
                             username: this.config.username,
-                            hasAccessToken: !!tokenData.access_token,
-                            hasRefreshToken: !!tokenData.refresh_token,
-                            profileName: tokenData.profile.name
+                            hasAccessToken: !!tokenData.access_token && tokenData.access_token !== 'no_access_token',
+                            hasRefreshToken: !!tokenData.refresh_token && tokenData.refresh_token !== 'no_refresh_token',
+                            profileName: tokenData.profile?.name || this.bot.username,
+                            expiresAt: new Date(tokenData.expires_at).toISOString()
                         });
                         
                         await this.authDB.saveAuthTokens(this.config.username, tokenData);
