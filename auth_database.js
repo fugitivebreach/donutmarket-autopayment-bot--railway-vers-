@@ -78,6 +78,22 @@ class AuthDatabase {
                 )
             `;
             await this.connection.execute(createTableQuery);
+            
+            // Add minecraft_token column if it doesn't exist (migration)
+            try {
+                await this.connection.execute(`
+                    ALTER TABLE minecraft_auth_tokens 
+                    ADD COLUMN minecraft_token TEXT AFTER refresh_token
+                `);
+                console.log('✅ Added minecraft_token column to existing table');
+            } catch (error) {
+                // Column already exists or other error - this is fine
+                if (!error.message.includes('Duplicate column name')) {
+                    console.log('ℹ️ minecraft_token column already exists or migration not needed');
+                }
+            }
+            
+            console.log('✅ Auth tokens table initialized');
         } catch (error) {
             console.error('❌ Failed to initialize tables:', error.message);
             throw error;
