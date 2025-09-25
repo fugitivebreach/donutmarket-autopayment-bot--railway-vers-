@@ -159,11 +159,11 @@ class MinecraftClient {
                     };
                     
                     console.log('🎯 Real token data captured:', {
-                        msaTokenLength: msaToken.length,
+                        msaTokenLength: msaToken?.length || 0,
                         refreshTokenLength: refreshToken?.length || 0,
-                        mcTokenLength: result.access_token.length,
-                        username: result.username || result.name,
-                        uuid: result.uuid || result.id
+                        mcTokenLength: result.token?.length || 0,
+                        username: result.profile?.name || result.username || result.name,
+                        uuid: result.profile?.id || result.uuid || result.id
                     });
                 } else {
                     console.log('⚠️ MSA tokens not found in any location');
