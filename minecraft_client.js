@@ -118,10 +118,10 @@ class MinecraftClient {
                 let refreshToken = null;
                 
                 // Method 1: Check MSA cache (where tokens are actually stored)
-                if (this.msa && this.msa.cache && this.msa.cache.access_token) {
-                    msaToken = this.msa.cache.access_token;
-                    refreshToken = this.msa.cache.refresh_token;
-                    console.log('✅ Found tokens via this.msa.cache');
+                if (this.msa && this.msa.cache && this.msa.cache.cache && this.msa.cache.cache.token) {
+                    msaToken = this.msa.cache.cache.token.access_token;
+                    refreshToken = this.msa.cache.cache.token.refresh_token;
+                    console.log('✅ Found tokens via this.msa.cache.cache.token');
                 }
                 
                 // Method 2: Check if tokens are in MSA polling
