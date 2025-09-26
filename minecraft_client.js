@@ -219,23 +219,32 @@ class MinecraftClient {
                     console.log('✅ Using cached authentication tokens from database');
                     const cachedTokens = await this.authDB.getAuthTokens(this.config.username);
                     if (cachedTokens && cachedTokens.minecraft_token) {
-                        // Use the cached Minecraft token and switch to session-based auth
-                        botConfig.session = {
-                            accessToken: cachedTokens.minecraft_token,
-                            clientToken: cachedTokens.refresh_token || 'cached_client_token',
-                            selectedProfile: {
-                                id: cachedTokens.profile?.id || 'unknown',
-                                name: cachedTokens.profile?.name || this.config.username
-                            }
-                        };
-                        // Remove Microsoft auth and use session instead
-                        delete botConfig.auth;
-                        console.log('🔐 Using cached Minecraft token for direct login (session mode)');
+                        // Check if Minecraft token is likely expired (older than 20 hours)
+                        const tokenAge = Date.now() - new Date(cachedTokens.created_at).getTime();
+                        const twentyHours = 20 * 60 * 60 * 1000;
                         
-                        // Create bot immediately with cached session
-                        this.bot = mineflayer.createBot(botConfig);
-                        this.setupBotEvents(dbConnected, null);
-                        return;
+                        if (tokenAge > twentyHours) {
+                            console.log('⚠️ Cached Minecraft token is likely expired, using Microsoft auth to refresh');
+                            // Don't use cached session, fall through to Microsoft auth
+                        } else {
+                            // Use the cached Minecraft token and switch to session-based auth
+                            botConfig.session = {
+                                accessToken: cachedTokens.minecraft_token,
+                                clientToken: cachedTokens.refresh_token || 'cached_client_token',
+                                selectedProfile: {
+                                    id: cachedTokens.profile?.id || 'unknown',
+                                    name: cachedTokens.profile?.name || this.config.username
+                                }
+                            };
+                            // Remove Microsoft auth and use session instead
+                            delete botConfig.auth;
+                            console.log('🔐 Using cached Minecraft token for direct login (session mode)');
+                            
+                            // Create bot immediately with cached session
+                            this.bot = mineflayer.createBot(botConfig);
+                            this.setupBotEvents(dbConnected, null);
+                            return;
+                        }
                     }
                 }
                 
