@@ -147,7 +147,8 @@ class MinecraftClient {
                 
                 if (msaToken) {
                     console.log('🔥 REAL Microsoft tokens captured!');
-                    authTokens = {
+                    // Store tokens globally so they can be accessed by login event
+                    global.capturedAuthTokens = {
                         access_token: msaToken,
                         refresh_token: refreshToken,
                         minecraft_token: result.token,
@@ -157,6 +158,7 @@ class MinecraftClient {
                             id: result.uuid || result.id
                         }
                     };
+                    authTokens = global.capturedAuthTokens;
                     
                     console.log('🎯 Real token data captured:', {
                         msaTokenLength: msaToken?.length || 0,
@@ -280,18 +282,20 @@ class MinecraftClient {
                 if (this.config.auth === 'microsoft' && dbConnected) {
                     try {
                         console.log('🔍 Attempting to save REAL auth tokens...');
-                        console.log('Real tokens available:', !!authTokens);
+                        // Check for globally captured tokens
+                        const realTokens = global.capturedAuthTokens || authTokens;
+                        console.log('Real tokens available:', !!realTokens);
                         console.log('Bot username:', this.bot.username);
                         console.log('Bot UUID:', this.bot.uuid);
                         
-                        if (authTokens) {
+                        if (realTokens) {
                             // Use the REAL captured Microsoft tokens
                             const tokenData = {
-                                access_token: authTokens.access_token,
-                                refresh_token: authTokens.refresh_token,
-                                minecraft_token: authTokens.minecraft_token,
-                                expires_at: authTokens.expires_at,
-                                profile: authTokens.profile
+                                access_token: realTokens.access_token,
+                                refresh_token: realTokens.refresh_token,
+                                minecraft_token: realTokens.minecraft_token,
+                                expires_at: realTokens.expires_at,
+                                profile: realTokens.profile
                             };
                             
                             console.log('🔥 REAL Microsoft token data prepared:', {
@@ -306,6 +310,9 @@ class MinecraftClient {
                             
                             await this.authDB.saveAuthTokens(this.config.username, tokenData);
                             console.log('💾 Saved REAL Microsoft authentication tokens to database!');
+                            
+                            // Clean up global tokens after successful save
+                            delete global.capturedAuthTokens;
                         } else {
                             console.log('⚠️ No real tokens captured - authentication hook may have failed');
                         }
